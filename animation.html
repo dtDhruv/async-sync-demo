@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Async vs Sync Client-Server Animation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f0f0f;
+            color: #ffffff;
+            padding: 60px 20px;
+            min-height: 100vh;
+            position: relative;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        body::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        body::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        body::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 5px;
+        }
+
+        body::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+            z-index: 0;
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 3.5em;
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            font-size: 1.15em;
+            margin-bottom: 60px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-bottom: 40px;
+        }
+
+        .section {
+            background: linear-gradient(135deg, rgba(24, 24, 27, 0.8) 0%, rgba(39, 39, 42, 0.6) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 32px;
+            padding: 45px 40px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 30px 80px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        }
+
+        .section:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 40px 100px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .section h2 {
+            text-align: center;
+            margin-bottom: 12px;
+            font-size: 1.75em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            letter-spacing: -0.5px;
+        }
+
+        .sync h2 {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .async h2 {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-description {
+            text-align: center;
+            margin-bottom: 35px;
+            color: #9ca3af;
+            font-size: 0.92em;
+            line-height: 1.7;
+            font-weight: 400;
+        }
+
+        .section-description strong {
+            color: #d1d5db;
+            font-weight: 600;
+        }
+
+        .architecture {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            height: 600px;
+        }
+
+        .client {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.08) 100%);
+            border: 1.5px solid rgba(59, 130, 246, 0.3);
+            border-radius: 24px;
+            padding: 28px 24px;
+            width: 240px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .client::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .client:hover::after {
+            left: 100%;
+        }
+
+        .client:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(37, 99, 235, 0.12) 100%);
+            transform: translateY(-2px);
+        }
+
+        .client::before {
+            content: '💻';
+            font-size: 3em;
+            display: block;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4));
+        }
+
+        .client h3 {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            font-size: 1.15em;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .server {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(147, 51, 234, 0.08) 100%);
+            border: 1.5px solid rgba(168, 85, 247, 0.3);
+            border-radius: 24px;
+            padding: 28px 24px;
+            width: 240px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .server::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .server:hover::after {
+            left: 100%;
+        }
+
+        .server:hover {
+            border-color: rgba(168, 85, 247, 0.5);
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(147, 51, 234, 0.12) 100%);
+            transform: translateY(-2px);
+        }
+
+        .server::before {
+            content: '🌐';
+            font-size: 3em;
+            display: block;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 4px 12px rgba(168, 85, 247, 0.4));
+        }
+
+        .server h3 {
+            background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            font-size: 1.15em;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .request-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 200px;
+        }
+
+        .request-item {
+            background: linear-gradient(135deg, rgba(24, 24, 27, 0.8) 0%, rgba(39, 39, 42, 0.6) 100%);
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            border-left: 3px solid #3b82f6;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #f3f4f6;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .request-item:hover {
+            background: linear-gradient(135deg, rgba(39, 39, 42, 0.9) 0%, rgba(63, 63, 70, 0.7) 100%);
+            border-left-color: #60a5fa;
+            transform: translateX(4px);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .queue-label {
+            font-size: 0.65em;
+            color: #71717a;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .request-packet {
+            position: absolute;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #ffffff;
+            padding: 14px 22px;
+            border-radius: 16px;
+            font-size: 0.95em;
+            font-weight: 700;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 12px 32px rgba(99, 102, 241, 0.5),
+                0 0 40px rgba(99, 102, 241, 0.2);
+            z-index: 10;
+            white-space: nowrap;
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            letter-spacing: 0.3px;
+        }
+
+        .request-packet::before {
+            content: '→ ';
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+
+        .response-packet {
+            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 12px 32px rgba(20, 184, 166, 0.5),
+                0 0 40px rgba(20, 184, 166, 0.2);
+        }
+
+        .response-packet::before {
+            content: '← ';
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #ffffff;
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            padding: 18px 52px;
+            border-radius: 16px;
+            font-size: 1.05em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 0 14px;
+            letter-spacing: 0.5px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 12px 32px rgba(99, 102, 241, 0.4),
+                0 0 40px rgba(99, 102, 241, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 16px 40px rgba(99, 102, 241, 0.5),
+                0 0 60px rgba(99, 102, 241, 0.3);
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        }
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: linear-gradient(135deg, #52525b 0%, #3f3f46 100%);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.5;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            margin-top: 32px;
+            padding: 28px;
+            background: linear-gradient(135deg, rgba(24, 24, 27, 0.8) 0%, rgba(39, 39, 42, 0.6) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats > div:first-child {
+            color: #a1a1aa;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            font-weight: 700;
+        }
+
+        .timer {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            margin-top: 14px;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -1px;
+            filter: drop-shadow(0 0 20px rgba(167, 139, 250, 0.5));
+        }
+
+        .processing {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin-bottom: 50px;
+            padding: 28px 40px;
+            background: linear-gradient(135deg, rgba(24, 24, 27, 0.6) 0%, rgba(39, 39, 42, 0.4) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 1em;
+            color: #e5e7eb;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .legend-box {
+            width: 42px;
+            height: 28px;
+            border-radius: 10px;
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.3),
+                0 0 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .request-color {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            box-shadow:
+                0 4px 12px rgba(99, 102, 241, 0.4),
+                0 0 20px rgba(99, 102, 241, 0.2);
+        }
+        .response-color {
+            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+            box-shadow:
+                0 4px 12px rgba(20, 184, 166, 0.4),
+                0 0 20px rgba(20, 184, 166, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Async vs Sync Client-Server Architecture</h1>
+        <div class="subtitle">Understanding the performance difference between synchronous and asynchronous requests</div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box request-color"></div>
+                <span>Request</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box response-color"></div>
+                <span>Response</span>
+            </div>
+        </div>
+
+        <div class="comparison">
+            <div class="section sync">
+                <h2><span style="font-size: 0.8em;">⏸</span> Synchronous</h2>
+                <div class="section-description">
+                    Waits for each request to complete before sending the next one.<br>
+                    <strong>One at a time → Slow</strong>
+                </div>
+                <div class="architecture" id="sync-arch">
+                    <div class="client">
+                        <h3>Client</h3>
+                        <div class="queue-label">Pending Requests</div>
+                        <div class="request-list" id="sync-client-queue"></div>
+                    </div>
+                    <div class="server">
+                        <h3>Server</h3>
+                        <div class="queue-label">Processing</div>
+                        <div class="request-list" id="sync-server-queue"></div>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div>Time Elapsed</div>
+                    <div class="timer" id="sync-timer">0.00s</div>
+                </div>
+            </div>
+
+            <div class="section async">
+                <h2><span style="font-size: 0.8em;">⚡</span> Asynchronous</h2>
+                <div class="section-description">
+                    Sends all requests at once without waiting.<br>
+                    <strong>All together → Fast</strong>
+                </div>
+                <div class="architecture" id="async-arch">
+                    <div class="client">
+                        <h3>Client</h3>
+                        <div class="queue-label">Pending Requests</div>
+                        <div class="request-list" id="async-client-queue"></div>
+                    </div>
+                    <div class="server">
+                        <h3>Server</h3>
+                        <div class="queue-label">Processing</div>
+                        <div class="request-list" id="async-server-queue"></div>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div>Time Elapsed</div>
+                    <div class="timer" id="async-timer">0.00s</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const cities = ["Mumbai", "New York", "London", "Paris", "Tokyo"];
+        const REQUEST_TIME = 1000; // Time for request to travel
+        const RESPONSE_TIME = 1500; // Time for server to process
+
+        let syncTime = 0;
+        let asyncTime = 0;
+        let syncInterval = null;
+        let asyncInterval = null;
+        let isAnimating = false;
+
+        function startAnimation() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            resetAnimation();
+            runSyncAnimation();
+            runAsyncAnimation();
+        }
+
+        function resetAnimation() {
+            syncTime = 0;
+            asyncTime = 0;
+
+            clearInterval(syncInterval);
+            clearInterval(asyncInterval);
+
+            document.getElementById('sync-timer').textContent = '0.00s';
+            document.getElementById('async-timer').textContent = '0.00s';
+            document.getElementById('sync-client-queue').innerHTML = '';
+            document.getElementById('sync-server-queue').innerHTML = '';
+            document.getElementById('async-client-queue').innerHTML = '';
+            document.getElementById('async-server-queue').innerHTML = '';
+
+            // Clear all request packets
+            document.querySelectorAll('.request-packet').forEach(el => el.remove());
+        }
+
+        async function runSyncAnimation() {
+            const clientQueue = document.getElementById('sync-client-queue');
+            const serverQueue = document.getElementById('sync-server-queue');
+            const archContainer = document.getElementById('sync-arch');
+
+            // Add all cities to client queue initially
+            cities.forEach(city => {
+                const item = document.createElement('div');
+                item.className = 'request-item';
+                item.textContent = city;
+                clientQueue.appendChild(item);
+            });
+
+            syncInterval = setInterval(() => {
+                syncTime += 0.01;
+                document.getElementById('sync-timer').textContent = syncTime.toFixed(2) + 's';
+            }, 10);
+
+            // Process each city sequentially (blocking)
+            for (let i = 0; i < cities.length; i++) {
+                const city = cities[i];
+
+                // Send request
+                await animatePacket(archContainer, city, true, 'request');
+
+                // Add to server queue
+                const serverItem = document.createElement('div');
+                serverItem.className = 'request-item processing';
+                serverItem.textContent = `Processing ${city}...`;
+                serverQueue.appendChild(serverItem);
+
+                // Wait for processing
+                await sleep(RESPONSE_TIME);
+
+                // Send response
+                serverItem.classList.remove('processing');
+                serverItem.textContent = `${city} ✓`;
+                await animatePacket(archContainer, city, false, 'response');
+
+                // Remove from client queue
+                if (clientQueue.firstChild) {
+                    clientQueue.removeChild(clientQueue.firstChild);
+                }
+
+                // Wait a bit before next request
+                await sleep(200);
+            }
+
+            clearInterval(syncInterval);
+        }
+
+        async function runAsyncAnimation() {
+            const clientQueue = document.getElementById('async-client-queue');
+            const serverQueue = document.getElementById('async-server-queue');
+            const archContainer = document.getElementById('async-arch');
+
+            // Add all cities to client queue initially
+            cities.forEach(city => {
+                const item = document.createElement('div');
+                item.className = 'request-item';
+                item.textContent = city;
+                clientQueue.appendChild(item);
+            });
+
+            asyncInterval = setInterval(() => {
+                asyncTime += 0.01;
+                document.getElementById('async-timer').textContent = asyncTime.toFixed(2) + 's';
+            }, 10);
+
+            // Send all requests concurrently (non-blocking)
+            const promises = cities.map(async (city, index) => {
+                // Stagger the start slightly for visual clarity
+                await sleep(index * 150);
+
+                // Send request
+                await animatePacket(archContainer, city, true, 'request');
+
+                // Add to server queue
+                const serverItem = document.createElement('div');
+                serverItem.className = 'request-item processing';
+                serverItem.textContent = `Processing ${city}...`;
+                serverQueue.appendChild(serverItem);
+
+                // Wait for processing
+                await sleep(RESPONSE_TIME);
+
+                // Send response
+                serverItem.classList.remove('processing');
+                serverItem.textContent = `${city} ✓`;
+                await animatePacket(archContainer, city, false, 'response');
+
+                // Remove from client queue
+                const items = clientQueue.querySelectorAll('.request-item');
+                items.forEach(item => {
+                    if (item.textContent === city) {
+                        clientQueue.removeChild(item);
+                    }
+                });
+            });
+
+            await Promise.all(promises);
+            clearInterval(asyncInterval);
+
+            setTimeout(() => {
+                isAnimating = false;
+            }, 500);
+        }
+
+        function animatePacket(container, label, toServer, type) {
+            return new Promise(resolve => {
+                const packet = document.createElement('div');
+                packet.className = `request-packet ${type === 'response' ? 'response-packet' : ''}`;
+                packet.textContent = label;
+
+                const containerRect = container.getBoundingClientRect();
+                const clientRect = container.querySelector('.client').getBoundingClientRect();
+                const serverRect = container.querySelector('.server').getBoundingClientRect();
+
+                const startX = toServer ? (clientRect.right - containerRect.left) : (serverRect.left - containerRect.left);
+                const endX = toServer ? (serverRect.left - containerRect.left) : (clientRect.right - containerRect.left);
+                const y = 150 + Math.random() * 200;
+
+                packet.style.left = startX + 'px';
+                packet.style.top = y + 'px';
+                packet.style.transition = `left ${REQUEST_TIME}ms linear`;
+
+                container.appendChild(packet);
+
+                setTimeout(() => {
+                    packet.style.left = endX + 'px';
+                }, 50);
+
+                setTimeout(() => {
+                    container.removeChild(packet);
+                    resolve();
+                }, REQUEST_TIME + 100);
+            });
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Add keyboard listener for Enter key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !isAnimating) {
+                startAnimation();
+            }
+        });
+    </script>
+</body>
+</html>
